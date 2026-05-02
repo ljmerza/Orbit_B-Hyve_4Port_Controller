@@ -42,9 +42,10 @@ ORBIT_API_BASE = "https://api.orbitbhyve.com/v1"
 ORBIT_APP_ID = "Bhyve-App"
 
 # GATT characteristic UUIDs
-AES_CHAR   = "00006c71-fe32-4f58-8b78-98e42b2c047f"
-WRITE_CHAR = "00006c72-fe32-4f58-8b78-98e42b2c047f"
-READ_CHAR  = "00006c73-fe32-4f58-8b78-98e42b2c047f"
+AES_CHAR     = "00006c71-fe32-4f58-8b78-98e42b2c047f"
+WRITE_CHAR   = "00006c72-fe32-4f58-8b78-98e42b2c047f"
+READ_CHAR    = "00006c73-fe32-4f58-8b78-98e42b2c047f"
+NETWORK_CHAR = "00006c76-fe32-4f58-8b78-98e42b2c047f"
 
 # Inner message constants
 MSG_HEADER = bytes([0xAA, 0x77, 0x5A, 0x0F])
@@ -302,6 +303,13 @@ async def ble_command(mac, network_key, command, zones=None, duration=600):
     async with BleakClient(mac, timeout=15.0) as client:
         await client._backend._acquire_mtu()
         print(f"Connected (MTU={client.mtu_size})")
+
+        # Provision the device with the network key (write to NETWORK_CHAR
+        # before the AES handshake). This authorizes our central to issue
+        # commands; without it, the device accepts encrypted writes but
+        # silently drops them. Format: 2-byte LE prefix (default 1) + key.
+        await client.write_gatt_char(NETWORK_CHAR, b"\x01\x00" + key, response=True)
+        print("Network key provisioned")
 
         notifications = []
         await client.start_notify(READ_CHAR, lambda s, d: notifications.append(d))

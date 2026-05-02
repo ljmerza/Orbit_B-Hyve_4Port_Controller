@@ -1,1 +1,9 @@
 /scripts/.bhyve_config.json
+
+# Local-only artifacts: official-app APKs used for protocol RE,
+# Python bytecode, and ad-hoc tools dropped in the repo root.
+*.apk
+*.xapk
+*.apkm
+__pycache__/
+/nrfutil

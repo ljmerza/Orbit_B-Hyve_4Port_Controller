@@ -13,7 +13,7 @@ from bleak import BleakClient
 from bleak_retry_connector import establish_connection
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from .const import AES_CHAR, WRITE_CHAR, READ_CHAR, MSG_HEADER
+from .const import AES_CHAR, WRITE_CHAR, READ_CHAR, NETWORK_CHAR, MSG_HEADER
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,6 +111,15 @@ class BHyveDevice:
             )
             _LOGGER.info("B-Hyve %s: connected!", self.address)
             await asyncio.sleep(0.5)
+
+            # Provision: write the network key to NETWORK_CHAR (0x6c76)
+            # before the AES handshake. Without this, the device accepts
+            # encrypted writes but silently drops them — valves never move.
+            # Format: 2-byte LE prefix (default 1) + 16-byte network key.
+            await client.write_gatt_char(
+                NETWORK_CHAR, b"\x01\x00" + self.network_key, response=True
+            )
+            _LOGGER.debug("B-Hyve %s: network key provisioned", self.address)
 
             # Init AES session: write 20 random bytes (byte[11]=0x00) to 6c71
             init_tx = bytearray(os.urandom(20))
